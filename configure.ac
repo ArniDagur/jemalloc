@@ -1508,34 +1508,39 @@ if test "x$backtrace_method" = "x" -a "x$enable_prof_libunwind" = "x1" ; then
   if test "x${enable_prof_libunwind}" = "x1" ; then
     backtrace_method="libunwind"
     AC_DEFINE([JEMALLOC_PROF_LIBUNWIND], [ ], [ ])
+  else
+    AC_MSG_ERROR([--enable-prof-libunwind was specified but libunwind is not available])
   fi
 fi
 
-if test `uname -s` = "Linux"
-then
-  AC_ARG_ENABLE([prof-frameptr],
-    [AS_HELP_STRING([--enable-prof-frameptr], [Use optimized frame pointer unwinder for backtracing (Linux only)])],
-  [if test "x$enable_prof_frameptr" = "xno" ; then
-    enable_prof_frameptr="0"
-  else
-    enable_prof_frameptr="1"
-    if test "x$enable_prof" = "x0" ; then
-      AC_MSG_ERROR([--enable-prof-frameptr should only be used with --enable-prof])
-    fi
-  fi
-  ],
-  [enable_prof_frameptr="0"]
-  )
-  if test "x$backtrace_method" = "x" -a "x$enable_prof_frameptr" = "x1" \
-      -a "x$GCC" = "xyes" ; then
-    JE_CFLAGS_ADD([-fno-omit-frame-pointer])
-    backtrace_method="frame pointer linux"
-    AC_DEFINE([JEMALLOC_PROF_FRAME_POINTER], [ ], [ ])
-  else
-    enable_prof_frameptr="0"
-  fi
-else
+AC_ARG_ENABLE([prof-frameptr],
+  [AS_HELP_STRING([--enable-prof-frameptr], [Use optimized frame pointer unwinder for backtracing (Linux only)])],
+[if test "x$enable_prof_frameptr" = "xno" ; then
   enable_prof_frameptr="0"
+else
+  enable_prof_frameptr="1"
+  if test "x$enable_prof" = "x0" ; then
+    AC_MSG_ERROR([--enable-prof-frameptr should only be used with --enable-prof])
+  fi
+fi
+],
+[enable_prof_frameptr="0"]
+)
+if test "x$enable_prof_frameptr" = "x1" ; then
+  case "${host_os}" in
+    linux*)
+      if test "x$backtrace_method" = "x" -a "x$GCC" = "xyes" ; then
+        JE_CFLAGS_ADD([-fno-omit-frame-pointer])
+        backtrace_method="frame pointer linux"
+        AC_DEFINE([JEMALLOC_PROF_FRAME_POINTER], [ ], [ ])
+      else
+        AC_MSG_ERROR([--enable-prof-frameptr was specified but could not be enabled])
+      fi
+      ;;
+    *)
+      AC_MSG_ERROR([--enable-prof-frameptr is only supported on Linux targets (host_os=${host_os})])
+      ;;
+  esac
 fi
 
 AC_ARG_ENABLE([prof-libgcc],
